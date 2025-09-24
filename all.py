@@ -4,7 +4,6 @@ import logging
 from flask import Flask
 from telegram import Update
 from telegram.error import BadRequest
-# ИМПОРТИРУЕМ НОВУЮ ФУНКЦИЮ
 from telegram.helpers import escape_markdown
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -71,10 +70,19 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     raw_text = update.message.text.replace('/all', '').replace('@all', '').strip()
-    # ИСПРАВЛЕНИЕ ЗДЕСЬ: "Обезвреживаем" текст пользователя
     escaped_text = escape_markdown(raw_text, version=2)
     
-    mentions_string = " ".join([f"[\u200b](tg://user?id={uid})" for uid in user_ids])
+    mentions = []
+    for user_id in user_ids:
+        try:
+            user_chat = await context.bot.get_chat(user_id)
+            # Экранируем имя пользователя, чтобы избежать ошибок
+            user_name = escape_markdown(user_chat.first_name, version=2)
+            mentions.append(f"[{user_name}](tg://user?id={user_id})")
+        except Exception as e:
+            logging.warning(f"Не удалось получить инфо о пользователе {user_id} для упоминания: {e}")
+            
+    mentions_string = ", ".join(mentions)
     
     final_text = ""
     if escaped_text:
@@ -131,13 +139,17 @@ async def tag_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
-        admin_mentions = [f"[\u200b](tg://user?id={admin.user.id})" for admin in admins if not admin.user.is_bot]
+        admin_mentions = []
+        for admin in admins:
+            if not admin.user.is_bot:
+                user_name = escape_markdown(admin.user.first_name, version=2)
+                admin_mentions.append(f"[{user_name}](tg://user?id={admin.user.id})")
         
         if not admin_mentions:
             await update.message.reply_text("В этом чате нет администраторов (кроме ботов).")
             return
             
-        message_text = "Внимание администраторам\! " + " ".join(admin_mentions)
+        message_text = "Внимание администраторам\! " + ", ".join(admin_mentions)
         await context.bot.send_message(chat_id=chat_id, text=message_text, parse_mode='MarkdownV2')
         
     except Exception as e:
@@ -191,12 +203,10 @@ def run_flask():
 
 def main():
     """Основная функция, запускает все."""
-    # Запускаем Flask в отдельном, фоновом потоке.
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
 
-    # Запускаем бота в главном потоке.
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("danya", danya_command))
