@@ -107,9 +107,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = "Подходите в центр международных конкурсов по праву МГУ, я вам всё расскажу. Центр расположен в кабинете 659А"
     await update.message.reply_text(help_text)
 
-# --- ИЗМЕНЕННАЯ ФУНКЦИЯ ---
 async def danya_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выдает новое определение синдрома Танцурина."""
     danya_text = (
         "Синдром Танцурина — специфическое психо-ситуативное явление, "
         "при котором студент (Даня), обычно демонстрирующий высокие компетенции, "
@@ -179,8 +177,10 @@ async def greet_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text="Привет! Я здесь, чтобы всех пинговать."
             )
 
-# --- ЗАПУСК БОТА И СЕРВЕРА ---
+# --- ИЗМЕНЕННАЯ ЛОГИКА ЗАПУСКА ---
+
 def run_bot():
+    """Запускает Telegram-бота."""
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("danya", danya_command))
@@ -196,12 +196,20 @@ def run_bot():
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, remember_user))
     
-    logging.info("Бот запущен в отдельном потоке...")
-    application.run_polling(stop_signals=None)
+    logging.info("Бот запускается в главном потоке...")
+    # Убираем stop_signals=None, так как бот теперь в главном потоке и может сам обрабатывать сигналы
+    application.run_polling()
+
+def run_flask():
+    """Запускает веб-сервер Flask."""
+    logging.info("Веб-сервер запускается во вспомогательном потоке...")
+    app.run(host='0.0.0.0', port=PORT)
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.start()
+    # Запускаем Flask в отдельном, фоновом потоке
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
     
-    logging.info("Веб-сервер запущен...")
-    app.run(host='0._0.0.0', port=PORT)
+    # Запускаем бота в главном потоке
+    run_bot()
