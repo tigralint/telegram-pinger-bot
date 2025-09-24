@@ -55,6 +55,9 @@ async def remember_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user.is_bot and add_user_id(user.id):
             logging.info(f"Запомнил нового пользователя: {user.first_name} (ID: {user.id})")
 
+# ######################################################################
+# ### ФУНКЦИЯ TAG_ALL ПОЛНОСТЬЮ ПЕРЕПИСАНА ДЛЯ НАДЕЖНОСТИ ###
+# ######################################################################
 async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Упоминает всех известных пользователей."""
     if update.message and update.message.from_user:
@@ -71,15 +74,18 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     original_text = update.message.text.replace('/all', '').replace('@all', '').strip()
-    mentions = [f"[\u200b](tg://user?id={uid})" for uid in user_ids]
+    mentions_string = " ".join([f"[\u200b](tg://user?id={uid})" for uid in user_ids])
     
-    message_text_parts = []
+    final_text = ""
     if original_text:
-        message_text_parts.append(f"❗ **Важное сообщение!** ❗\n_{original_text}_\n\n")
+        # Если пользователь ввел свой текст, добавляем его к заголовку
+        final_text = f"❗ **Важное сообщение!** ❗\n_{original_text}_\n\n{mentions_string}"
+    else:
+        # Если текста нет, используем стандартный заголовок, чтобы сообщение не было пустым
+        final_text = f"📣 **Общий сбор!**\n\n{mentions_string}"
     
-    message_text_parts.append(" ".join(mentions))
-    
-    await context.bot.send_message(chat_id=chat_id, text="".join(message_text_parts), parse_mode='MarkdownV2')
+    # Отправляем итоговое сообщение
+    await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode='MarkdownV2')
 
 async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает список всех запомненных пользователей."""
@@ -105,8 +111,6 @@ async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_text += f"{i}. {name}\n"
     
     await update.message.reply_text(response_text)
-
-# --- Новые функции ---
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет сообщение со списком команд."""
@@ -182,20 +186,17 @@ async def greet_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text="Привет всем! Я бот для упоминаний. Напишите /help, чтобы узнать, что я умею."
             )
 
-# --- ЗАПУСК БОТА И СЕРВЕРА ---
+# --- ЗАПУСК БОТА И СЕРВERA ---
 def run_bot():
     application = Application.builder().token(TOKEN).build()
-
-    # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-    # Разделяем обработчики для /all и @all, чтобы избежать ошибок
-    application.add_handler(CommandHandler("all", tag_all))
-    application.add_handler(MessageHandler(filters.Regex(r'(?i)@all'), tag_all))
-    # -------------------------
 
     application.add_handler(CommandHandler(["start", "help"], help_command))
     application.add_handler(CommandHandler("list", show_list))
     application.add_handler(CommandHandler("admins", tag_admins))
     application.add_handler(CommandHandler("cleanup", cleanup_list))
+    
+    application.add_handler(CommandHandler("all", tag_all))
+    application.add_handler(MessageHandler(filters.Regex(r'(?i)@all'), tag_all))
     
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, greet_new_members))
     
