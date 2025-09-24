@@ -24,7 +24,7 @@ app = Flask(__name__)
 def hello_world():
     return 'Bot is alive and running!'
 
-# --- ЛОГИКА БОТА (обновленная) ---
+# --- ЛОГИКА БОТА ---
 
 def load_user_ids():
     if not os.path.exists(USER_LIST_FILE):
@@ -40,14 +40,12 @@ def save_user_id(user_id):
         return True
     return False
 
-# Функция, которая "запоминает" всех, кто пишет в чат
 async def remember_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.from_user:
         user = update.message.from_user
         if not user.is_bot and save_user_id(user.id):
             logging.info(f"Запомнил нового пользователя: {user.first_name} (ID: {user.id})")
 
-# Функция для команды @all или /all
 async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     logging.info(f"Получена команда @all в чате {chat_id}")
@@ -72,18 +70,15 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- ЗАПУСК ---
 def run_bot():
-    # Новый, современный способ создания бота
     application = Application.builder().token(TOKEN).build()
 
-    # Обработчики команд и сообщений (новый синтаксис)
-    # Используем filters.TEXT вместо Filters.text и т.д.
     application.add_handler(CommandHandler("all", tag_all))
     application.add_handler(MessageHandler(filters.Regex(r'(?i)@all'), tag_all))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, remember_user))
     
     logging.info("Бот запущен в отдельном потоке...")
-    # Запускаем бота
-    application.run_polling()
+    # ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавлен параметр stop_signals=None
+    application.run_polling(stop_signals=None)
 
 if __name__ == "__main__":
     bot_thread = threading.Thread(target=run_bot)
