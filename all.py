@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Включаем логирование, чтобы видеть информацию о работе бота
+# Включаем логирование
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -75,7 +75,7 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     message_text_parts = []
     if original_text:
-        message_text_parts.append(f"❗ **Важное сообщение!** ❗\n_{original_text}_\n")
+        message_text_parts.append(f"❗ **Важное сообщение!** ❗\n_{original_text}_\n\n")
     
     message_text_parts.append(" ".join(mentions))
     
@@ -106,7 +106,7 @@ async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(response_text)
 
-# --- НОВЫЕ ФУНКЦИИ ---
+# --- Новые функции ---
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет сообщение со списком команд."""
@@ -120,7 +120,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "▪️ `/help` - показать это сообщение.\n\n"
         "Я запоминаю людей автоматически, когда они пишут сообщения в чат."
     )
-    await update.message.reply_text(help_text)
+    await update.message.reply_text(help_text, parse_mode='Markdown')
 
 async def tag_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Упоминает только администраторов чата."""
@@ -135,7 +135,7 @@ async def tag_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("В этом чате нет администраторов (кроме ботов).")
             return
             
-        message_text = " 호출 **Внимание администраторам!** " + " ".join(admin_mentions)
+        message_text = "⚜️ **Внимание администраторам!** " + " ".join(admin_mentions)
         await context.bot.send_message(chat_id=chat_id, text=message_text, parse_mode='MarkdownV2')
         
     except Exception as e:
@@ -164,11 +164,10 @@ async def cleanup_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 removed_count += 1
         except BadRequest:
-            # Пользователь не найден, значит он точно покинул чат
             removed_count += 1
         except Exception as e:
             logging.error(f"Ошибка при проверке пользователя {user_id}: {e}")
-            kept_ids.add(user_id) # На всякий случай сохраняем, если была временная ошибка
+            kept_ids.add(user_id)
 
     save_user_ids(kept_ids)
     await update.message.reply_text(f"✅ **Очистка завершена.**\nОсталось в списке: {len(kept_ids)}\nУдалено: {removed_count}")
@@ -187,18 +186,19 @@ async def greet_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     application = Application.builder().token(TOKEN).build()
 
-    # Добавляем все обработчики
+    # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+    # Разделяем обработчики для /all и @all, чтобы избежать ошибок
+    application.add_handler(CommandHandler("all", tag_all))
+    application.add_handler(MessageHandler(filters.Regex(r'(?i)@all'), tag_all))
+    # -------------------------
+
     application.add_handler(CommandHandler(["start", "help"], help_command))
     application.add_handler(CommandHandler("list", show_list))
     application.add_handler(CommandHandler("admins", tag_admins))
     application.add_handler(CommandHandler("cleanup", cleanup_list))
     
-    application.add_handler(MessageHandler(filters.Regex(r'(?i)@all') | filters.command('all'), tag_all))
-    
-    # Обработчик для приветствия
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, greet_new_members))
     
-    # Обработчик для запоминания пользователей должен идти последним
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, remember_user))
     
     logging.info("Бот запущен в отдельном потоке...")
