@@ -69,8 +69,7 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     original_text = update.message.text.replace('/all', '').replace('@all', '').strip()
-    # Упоминания без форматирования
-    mentions_string = " ".join([f"[{user_id}](tg://user?id={user_id})" for user_id in user_ids])
+    mentions_string = " ".join([f"[\u200b](tg://user?id={uid})" for uid in user_ids])
     
     final_text = ""
     if original_text:
@@ -78,8 +77,7 @@ async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         final_text = f"Общий сбор!\n\n{mentions_string}"
     
-    # Отправляем просто текст, без Markdown
-    await context.bot.send_message(chat_id=chat_id, text=final_text)
+    await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode='MarkdownV2')
 
 async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_ids = load_user_ids()
@@ -109,15 +107,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = "Подходите в центр международных конкурсов по праву МГУ, я вам всё расскажу. Центр расположен в кабинете 659А"
     await update.message.reply_text(help_text)
 
-# --- НОВАЯ ФУНКЦИЯ ---
+# --- ИЗМЕНЕННАЯ ФУНКЦИЯ ---
 async def danya_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выдает определение синдрома Танцурина."""
+    """Выдает новое определение синдрома Танцурина."""
     danya_text = (
-        "Синдром Танцурина — это хроническое невезение студента, "
-        "проявляющееся в серии неудач, которые происходят не по его вине, "
-        "но неизменно с его участием. Часто сопровождается фразами окружающих "
-        "\"Ну это же Даня\" и приводит к неожиданным, но закономерным провалам "
-        "в самых ответственных ситуациях."
+        "Синдром Танцурина — специфическое психо-ситуативное явление, "
+        "при котором студент (Даня), обычно демонстрирующий высокие компетенции, "
+        "проявляет аномальную неуклюжесть и склонность к ошибкам исключительно "
+        "в присутствии профессора Ильютченко. Термин был введен самим профессором, "
+        "которая связала череду собственных неудач и необъяснимых трудностей "
+        "с нахождением Дани в непосредственной близости. Таким образом, синдром "
+        "описывает не неудачливость студента, а скорее его способность действовать "
+        "как катализатор энтропии и неудач для преподавателя."
     )
     await update.message.reply_text(danya_text)
 
@@ -127,14 +128,14 @@ async def tag_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
-        admin_mentions = [f"[{admin.user.first_name}](tg://user?id={admin.user.id})" for admin in admins if not admin.user.is_bot]
+        admin_mentions = [f"[\u200b](tg://user?id={admin.user.id})" for admin in admins if not admin.user.is_bot]
         
         if not admin_mentions:
             await update.message.reply_text("В этом чате нет администраторов (кроме ботов).")
             return
             
         message_text = "Внимание администраторам! " + " ".join(admin_mentions)
-        await context.bot.send_message(chat_id=chat_id, text=message_text)
+        await context.bot.send_message(chat_id=chat_id, text=message_text, parse_mode='MarkdownV2')
         
     except Exception as e:
         logging.error(f"Ошибка при получении админов: {e}")
@@ -182,9 +183,7 @@ async def greet_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     application = Application.builder().token(TOKEN).build()
 
-    # Добавляем обработчик для новой команды /danya
     application.add_handler(CommandHandler("danya", danya_command))
-    
     application.add_handler(CommandHandler(["start", "help"], help_command))
     application.add_handler(CommandHandler("list", show_list))
     application.add_handler(CommandHandler("admins", tag_admins))
@@ -205,4 +204,4 @@ if __name__ == "__main__":
     bot_thread.start()
     
     logging.info("Веб-сервер запущен...")
-    app.run(host='0.0.0.0', port=PORT)
+    app.run(host='0._0.0.0', port=PORT)
